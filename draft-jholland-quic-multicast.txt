@@ -5,7 +5,7 @@
 QUIC Working Group                                            J. Holland
 Internet-Draft                                 Akamai Technologies, Inc.
 Intended status: Experimental                                  L. Pardue
-Expires: 17 October 2022                                   15 April 2022
+Expires: 18 October 2022                                   16 April 2022
 
 
                       Multicast Extension for QUIC
@@ -50,7 +50,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 17 October 2022.
+   This Internet-Draft will expire on 18 October 2022.
 
 Copyright Notice
 
@@ -70,8 +70,8 @@ Table of Contents
 
    1.  Introduction
      1.1.  Conventions and Definitions
-   2.  Handshake Negotiation and Transport Parameter
-   3.  Multicast Session
+   2.  Multicast Session
+   3.  Transport Parameter
    4.  Extension Overview
      4.1.  Session Management
      4.2.  Client Response
@@ -129,11 +129,7 @@ Table of Contents
    BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
    capitals, as shown here.
 
-2.  Handshake Negotiation and Transport Parameter
-
-   TODO (next)
-
-3.  Multicast Session
+2.  Multicast Session
 
    A multicast session (or just session) is a one-way communication
    stream by which a server can transport data to a client as part of
@@ -169,6 +165,63 @@ Table of Contents
    used for that data, it will only know it has received unidirectional
    server-to-client application data.
 
+3.  Transport Parameter
+
+   Support for multicast extesnsions in a client is advertised by means
+   of a QUIC transport parameter:
+
+   *  name: multicast_client_params (TBD - experiments use 0xff3e8000)
+
+   If a multicast_client_params transport parameter is not included,
+   servers MUST NOT send any frames defined in this document.  (Given
+   that a server never sends any MC_SESSION_JOIN frames, the clients
+   also will never send any frames in this document so only the client-
+   to-server advertisement is necessary.)
+
+   The multicast_client_params parameter has the structure below:
+
+   multicast_client_params parameters are formatted as shown in
+   Figure 1.
+
+   multicast_client_params {
+     Permit IPv4 (1),
+     Permit IPv6 (1),
+     Reserved (6),
+     Max Aggregate Rate (i),
+     Max Session IDs (i),
+     Hash Algorithms Supported (i),
+     AEAD Algorithms Supported (i),
+     Hash Algorithms List (16 * Hash Algorithms Supported),
+     AEAD Algorithms List (16 * AEAD Algorithms Supported)
+   }
+
+                  Figure 1: multicast_client_params Format
+
+   The Permit IPv4, Permit IPv6, Max Aggregate Rate, and Max Session IDs
+   fields are the same as in MC_CLIENT_LIMITS frames (Section 9.8) and
+   provide the initial client values.
+
+   The AEAD Algorithms List field is in order of prefernce (most
+   preferred occuring first) using values from the registry below.  It
+   lists the algorithms the client is willing to use to decrypt data in
+   multicast sessions, and the server MUST NOT send a MP_SESSION_JOIN to
+   this client for any sessions using unsupported algorithms:
+
+   *  https://www.iana.org/assignments/aead-parameters/aead-
+      parameters.xhtml (https://www.iana.org/assignments/aead-
+      parameters/aead-parameters.xhtml)
+
+   The Hash Algorithms List field is in order of prefernce (most
+   preferred occurring first) using values from this registry below.  It
+   lists the algorithms the client is willing to use to check integrity
+   of data in multicast sessions, and the server MUST NOT send a
+   MP_SESSION_JOIN to this client for any sessions using unsupported
+   algorithms:
+
+   *  https://www.iana.org/assignments/named-information/named-
+      information.xhtml#hash-alg (https://www.iana.org/assignments/
+      named-information/named-information.xhtml#hash-alg)
+
 4.  Extension Overview
 
    A client has the option of refusal and the power to impose upper
@@ -188,8 +241,12 @@ Table of Contents
 4.1.  Session Management
 
    The client tells its server about some restrictions on resources that
-   the server's instructions must remain within using MC_CLIENT_LIMITS
-   Section 9.8 frames as covered in Section 5.
+   the server's instructions with the initial values in the
+   multicast_client_params transport parameter (Section 3) and later can
+   update these limits with MC_CLIENT_LIMITS Section 9.8 frames.
+   Servers ensure the set of sessions the client is currently requested
+   to join remains within these advertised client limits as covered in
+   Section 5.
 
    The server asks the client to join sessions with MC_SESSION_JOIN
    (Section 9.2) frames and to leave sessions with MC_SESSION_LEAVE
@@ -213,8 +270,9 @@ Table of Contents
 
    The server ensures that in aggregate, all sessions that the client
    has currently been asked to join and that the client has not left or
-   declined to join fit within the limits indicated by the last
-   MC_CLIENT_LIMITS (Section 9.8) frame the server received.
+   declined to join fit within the limits indicated by the initial
+   values in the transport parameter or last MC_CLIENT_LIMITS
+   (Section 9.8) frame the server received.
 
 4.2.  Client Response
 
@@ -292,8 +350,9 @@ Table of Contents
 
    Instead, clients advertise resource limits that the server is
    responsible for staying within via MC_CLIENT_LIMITS (Section 9.8)
-   frames.  The server advertises the expected maxima of the values that
-   can contribute toward client resource limits within a session in
+   frames and their initial values from the transport parameter
+   (Section 3).  The server advertises the expected maxima of the values
+   that can contribute toward client resource limits within a session in
    MC_SESSION_PROPERTIES (Section 9.1) frames.
 
    If the server asks the client to join a session that would exceed the
@@ -341,7 +400,7 @@ Table of Contents
    set of MC_SESSION_PROPERTIES frames that set each of the values for
    the session.
 
-   MC_SESSION_PROPERTIES frames are formatted as shown in Figure 1.
+   MC_SESSION_PROPERTIES frames are formatted as shown in Figure 2.
 
    MC_SESSION_PROPERTIES Frame {
      Type (i) = TBD-01 (experiments use 0xff3e8001),
@@ -357,10 +416,10 @@ Table of Contents
        Has Max Idle Time (1),
        Has Recommended Max Streams (1),
        Has SSM (1),
-       Has Addresses (1),
-       IP Family (4)
+       Has Addresses (1)
      },
-     Reserved (3),
+     Reserved (6),
+     IP Family (1)
      Until Packet Number (0..32),
      AEAD Algorithm (0..16),
      Key (...),
@@ -375,7 +434,7 @@ Table of Contents
      UDP Port (0..16)
    }
 
-                Figure 1: MC_SESSION_PROPERTIES Frame Format
+                Figure 2: MC_SESSION_PROPERTIES Frame Format
 
    The 'Has' fields in the Selector determine presence or absence of the
    corresponding values in the rest of the frame.  If a field is not
@@ -433,6 +492,15 @@ Table of Contents
          (https://www.iana.org/assignments/hash-function-text-names/
          hash-function-text-names.xhtml)
 
+   *  If Has Addresses is 0, then Has SSM and IP Family are ignored and
+      neither Source IP nor Group IP is present.  If Has Addresses is 1,
+      then SSM indicates the presence of Source IP (1 means present, 0
+      means not present), and IP Family indicates the address family of
+      both Source IP (if present) and Group IP, with 0 meaning IPv4 (32
+      bits) and 1 meaning IPv6 (128 bits). an IP Family of 0 indicates
+      the Group (if present) are IPv4, or an IP family of 1 indicates
+      the Group and Source are IPv6.
+
 9.2.  MC_SESSION_JOIN
 
    An MC_SESSION_JOIN frame (type TBD-02) is sent from server to client
@@ -440,7 +508,7 @@ Table of Contents
    ports and process packets with the given Session ID according to the
    corresponding MC_SESSION_PROPERTIES.
 
-   MC_SESSION_JOIN frames are formatted as shown in Figure 2.
+   MC_SESSION_JOIN frames are formatted as shown in Figure 3.
 
    MC_SESSION_JOIN Frame {
      Type (i) = TBD-02 (experiments use 0xff3e8002),
@@ -449,7 +517,7 @@ Table of Contents
      MC_CLIENT_SESSION_STATE Sequence Number (i),
      MC_SESSION_PROPERTIES Sequence Number (i)
 
-                   Figure 2: MC_SESSION_JOIN Frame Format
+                   Figure 3: MC_SESSION_JOIN Frame Format
 
    The sequence numbers are present to allow the client to distinguish
    between a broken sender that has performed an illegal action and an
@@ -469,21 +537,21 @@ Table of Contents
    An MC_SESSION_LEAVE frame (type=TBD-03) is sent from server to client
    Server-to-client in unicast connection or inside session.
 
-   MC_SESSION_LEAVE frames are formatted as shown in Figure 3.
+   MC_SESSION_LEAVE frames are formatted as shown in Figure 4.
 
    MC_SESSION_LEAVE Frame {
      Type (i) = TBD-03 (experiments use 0xff3e8003),
      Session ID (i),
      After Packet Number (i)
 
-                  Figure 3: MC_SESSION_LEAVE Frame Format
+                  Figure 4: MC_SESSION_LEAVE Frame Format
 
    If After Packet Number is nonzero, wait until receiving that packet
    or a higher valued number before leaving.
 
 9.4.  MC_SESSION_INTEGRITY
 
-   MC_SESSION_INTEGRITY frames are formatted as shown in Figure 4.
+   MC_SESSION_INTEGRITY frames are formatted as shown in Figure 5.
 
 MC_SESSION_INTEGRITY Frame {
   Type (i) = TBD-04..TBD-05 (experiments use 0xff3e8004 and 0xff3e8005),
@@ -492,7 +560,7 @@ MC_SESSION_INTEGRITY Frame {
   [Length (i)],
   Packet Hashes (..)
 
-             Figure 4: MC_SESSION_INTEGRITY Frame Format
+             Figure 5: MC_SESSION_INTEGRITY Frame Format
 
    For type TBD-05, Length is present and is a count of packet hashes.
    For TBD-04, Length is not present and the packet hashes extend to the
@@ -504,7 +572,7 @@ MC_SESSION_INTEGRITY Frame {
 9.5.  MC_SESSION_STREAM_BOUNDARY_OFFSET
 
    MC_SESSION_STREAM_BOUNDARY_OFFSET frames are formatted as shown in
-   Figure 5.
+   Figure 6.
 
    MC_SESSION_STREAM_BOUNDARY_OFFSET Frame {
      Type (i) = TBD-06 (experiments use 0xff3e8006),
@@ -512,7 +580,7 @@ MC_SESSION_INTEGRITY Frame {
      Stream ID (i),
      Stream Offset (i)
 
-          Figure 5: MC_SESSION_STREAM_BOUNDARY_OFFSET Frame Format
+          Figure 6: MC_SESSION_STREAM_BOUNDARY_OFFSET Frame Format
 
    Client must discard data before Stream Offset, and should start
    accepting stream data at Stream Offset as though it's a new stream
@@ -534,7 +602,7 @@ MC_SESSION_INTEGRITY Frame {
    [I-D.draft-ietf-quic-multipath], defining session id as the packet
    number space?  at 2022-04-12 they're identical.)
 
-   MC_SESSION_ACK frames are formatted as shown in Figure 6.
+   MC_SESSION_ACK frames are formatted as shown in Figure 7.
 
      MC_SESSION_ACK Frame {
        Type (i) = TBD-07 (experiments use 0xff3e8007),
@@ -547,7 +615,7 @@ MC_SESSION_INTEGRITY Frame {
        [ECN Counts (..)],
      }
 
-                   Figure 6: MC_SESSION_ACK Frame Format
+                   Figure 7: MC_SESSION_ACK Frame Format
 
 9.7.  MC_PATH_RESPONSE
 
@@ -555,7 +623,7 @@ MC_SESSION_INTEGRITY Frame {
    connection in response to an PATH_CHALLENGE received in a session.
    Like PATH_RESPONSE but includes a session id.
 
-   MC_PATH_RESPONSE frames are formatted as shown in Figure 7.
+   MC_PATH_RESPONSE frames are formatted as shown in Figure 8.
 
    MC_PATH_RESPONSE Frame {
      Type (i) = TBD-08 (experiments use 0xffe38008)
@@ -563,11 +631,11 @@ MC_SESSION_INTEGRITY Frame {
      Data (64)
    }
 
-                  Figure 7: MC_PATH_RESPONSE Frame Format
+                  Figure 8: MC_PATH_RESPONSE Frame Format
 
 9.8.  MC_CLIENT_LIMITS
 
-   MC_CLIENT_LIMITS frames are formatted as shown in Figure 8.
+   MC_CLIENT_LIMITS frames are formatted as shown in Figure 9.
 
    MC_CLIENT_LIMITS Frame {
      Type (i) = TBD-09 (experiments use 0xff3e8009),
@@ -578,26 +646,30 @@ MC_SESSION_INTEGRITY Frame {
      Max Aggregate Rate (i),
      Max Session IDs (i)
 
-                  Figure 8: MC_CLIENT_LIMITS Frame Format
+                  Figure 9: MC_CLIENT_LIMITS Frame Format
+
+   The sequence number is implicitly 0 before the first MC_CLIENT_LIMITS
+   frame from the client, and increases by 1 each new frame that's sent.
+   Newer frames override older ones.
 
    Max Aggregate Rate allowed across all joined sessions is in Kibps.
 
 9.9.  MC_SESSION_RETIRE
 
-   MC_SESSION_RETIRE frames are formatted as shown in Figure 9.
+   MC_SESSION_RETIRE frames are formatted as shown in Figure 10.
 
    MC_SESSION_RETIRE Frame {
      Type (i) = TBD-0a (experiments use 0xff3e800a),
      Session IDs (i)
 
-                  Figure 9: MC_SESSION_RETIRE Frame Format
+                 Figure 10: MC_SESSION_RETIRE Frame Format
 
    Retires a session by id.  (We can't use RETIRE_CONNECTION_ID because
    we don't have a coherent sequence number.)
 
 9.10.  MC_CLIENT_SESSION_STATE
 
-   MC_CLIENT_SESSION_STATE frames are formatted as shown in Figure 10.
+   MC_CLIENT_SESSION_STATE frames are formatted as shown in Figure 11.
 
    MC_CLIENT_SESSION_STATE Frame {
      Type (i) = TBD-0b (experiments use 0xff3e800b),
@@ -605,7 +677,7 @@ MC_SESSION_INTEGRITY Frame {
      State (i),
      Reason (0..i)
 
-              Figure 10: MC_CLIENT_SESSION_STATE Frame Format
+              Figure 11: MC_CLIENT_SESSION_STATE Frame Format
 
    State has possible values:
 
