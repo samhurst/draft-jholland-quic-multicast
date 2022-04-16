@@ -1165,6 +1165,14 @@ svg [stroke="fill"], svg [fill^="#fff"] {
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1">
                 <p id="section-toc.1-1.9.2.1.1"><a href="#section-9.1" class="xref">9.1</a>.  <a href="#name-mc_session_properties" class="xref">MC_SESSION_PROPERTIES</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1.2.1">
+                    <p id="section-toc.1-1.9.2.1.2.1.1"><a href="#section-9.1.1" class="xref">9.1.1</a>.  <a href="#name-immutable-properties" class="xref">Immutable Properties</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1.2.2">
+                    <p id="section-toc.1-1.9.2.1.2.2.1"><a href="#section-9.1.2" class="xref">9.1.2</a>.  <a href="#name-mutable-properties" class="xref">Mutable Properties</a></p>
+</li>
+                </ul>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.2">
                 <p id="section-toc.1-1.9.2.2.1"><a href="#section-9.2" class="xref">9.2</a>.  <a href="#name-mc_session_join" class="xref">MC_SESSION_JOIN</a></p>
@@ -1332,7 +1340,7 @@ multicast_client_params {
 <p id="section-4.1-1">The client tells its server about some restrictions on resources that the server's instructions with the initial values in the multicast_client_params transport parameter (<a href="#transport-parameter" class="xref">Section 3</a>) and later can update these limits with MC_CLIENT_LIMITS <a href="#client-limits-frame" class="xref">Section 9.8</a> frames. Servers ensure the set of sessions the client is currently requested to join remains within these advertised client limits as covered in <a href="#flow-control" class="xref">Section 5</a>.<a href="#section-4.1-1" class="pilcrow">¶</a></p>
 <p id="section-4.1-2">The server asks the client to join sessions with MC_SESSION_JOIN (<a href="#session-join-frame" class="xref">Section 9.2</a>) frames and to leave sessions with MC_SESSION_LEAVE (<a href="#session-leave-frame" class="xref">Section 9.3</a>) frames.<a href="#section-4.1-2" class="pilcrow">¶</a></p>
 <p id="section-4.1-3">The server uses MC_SESSION_PROPERTIES (<a href="#session-properties-frame" class="xref">Section 9.1</a>) frames before any join or leave frames for the session to describe the session properties to the client, including values the client can use to ensure the server's requests remain within the limits it has sent to the server, as well as the keys necessary to decode packets in the session.<a href="#section-4.1-3" class="pilcrow">¶</a></p>
-<p id="section-4.1-4">When the server has asked the client to join a session, it also sends MC_SESSION_INTEGRITY (<a href="#session-integrity-frame" class="xref">Section 9.4</a> frames to enable the client to verify packet integrity before processing the packet.
+<p id="section-4.1-4">When the server has asked the client to join a session, it also sends MC_SESSION_INTEGRITY frames (<a href="#session-integrity-frame" class="xref">Section 9.4</a>) to enable the client to verify packet integrity before processing the packet.
 A client MUST NOT decode packets for a session for which it has not received an applicable set of MC_SESSION_PROPERTIES (<a href="#session-properties-frame" class="xref">Section 9.1</a>) frames containing the full set of data required, or for which it has not received a matching packet hash in an MC_SESSION_INTEGRITY (<a href="#session-integrity-frame" class="xref">Section 9.4</a>) frame.<a href="#section-4.1-4" class="pilcrow">¶</a></p>
 <p id="section-4.1-5">The server ensures that in aggregate, all sessions that the client has currently been asked to join and that the client has not left or declined to join fit within the limits indicated by the initial values in the transport parameter or last MC_CLIENT_LIMITS (<a href="#client-limits-frame" class="xref">Section 9.8</a>) frame the server received.<a href="#section-4.1-5" class="pilcrow">¶</a></p>
 </section>
@@ -1436,76 +1444,115 @@ MC_SESSION_PROPERTIES Frame {
   Type (i) = TBD-01 (experiments use 0xff3e8001),
   Session ID (i),
   Properties Sequence Number (i),
-  From Packet Number (32),
-  Selectors (12) {
+  From Packet Number (i),
+  Selectors (9) {
     Has Until Packet Number (1),
-    Has Key (1),
+    Has Addresses (1)
+    Has SSM (1),
     Has Header Key (1),
+    Has Key (1),
     Has Hash Algorithm (1),
     Has Max Rate (1),
     Has Max Idle Time (1),
-    Has Recommended Max Streams (1),
-    Has SSM (1),
-    Has Addresses (1)
+    Has Max Streams (1),
   },
-  Reserved (6),
-  IP Family (1)
-  Until Packet Number (0..32),
+  Reserved (5),
+  Key Phase (1),
+  [IP Family] (1),
+  Until Packet Number (0..i),
+  [Source IP] (0..128),
+  [Group IP] (0..128),
+  [UDP Port] (0..16)
+  [Header AEAD Algorithm] (0..16),
+  [Header Key] (...),
   AEAD Algorithm (0..16),
   Key (...),
-  Header AEAD Algorithm (0..16),
-  Header Key (...),
   Integrity Hash Algorithm (0..8),
   Max Rate (0..i),
   Max Idle Time (0..i),
-  Recommended Max Streams (0..i),
-  Source IP (...),
-  Group IP (...),
-  UDP Port (0..16)
+  Max Streams (0..i),
 }
+[] = immutable values
 </pre>
 </div>
 <figcaption><a href="#figure-2" class="selfRef">Figure 2</a>:
 <a href="#name-mc_session_properties-frame" class="selfRef">MC_SESSION_PROPERTIES Frame Format</a>
           </figcaption></figure>
 </div>
-<p id="section-9.1-6">The 'Has' fields in the Selector determine presence or absence of the corresponding values in the rest of the frame.
+<p id="section-9.1-6">The 'Has' fields in the Selector determine presence or absence of the corresponding values in the rest of the frame, as described below.
 If a field is not included, it remains unchanged unless a different semantic is explained below.<a href="#section-9.1-6" class="pilcrow">¶</a></p>
 <ul class="normal">
-<li class="normal" id="section-9.1-7.1">From Packet Number, Until Packet Number: the changes given in this MC_SESSION_PROPERTIES frame apply to packets starting at From Packet Number and continuing until Until Packet Number-1.  If Until Packet Number is omitted it indicates the current property values for this session do not expire at any packet number.<a href="#section-9.1-7.1" class="pilcrow">¶</a>
+<li class="normal" id="section-9.1-7.1">From Packet Number, Until Packet Number: the mutable values in this MC_SESSION_PROPERTIES frame apply only to packets starting at From Packet Number and continuing for all packets up to and including Until Packet Number.  If Until Packet Number is omitted it indicates the current property values for this session have no expiration at (equivalent to the maximum value for packet numbers, or 2^62-1).  If a packet number is received outside of any prior (From,Until) range, it has no applicable session properties and MUST be dropped.<a href="#section-9.1-7.1" class="pilcrow">¶</a>
 </li>
-          <li class="normal" id="section-9.1-7.2">AEAD Algorithm: a value from <a href="https://www.iana.org/assignments/aead-parameters/aead-parameters.xhtml">https://www.iana.org/assignments/aead-parameters/aead-parameters.xhtml</a>.  Both this field and the Key field are present if and only if Has Key is set, and the length of the following Key field is determined by the algorithm value.  The algorithm value provided MUST be a value listed as supported by the client in the transport properties during initial negotiation.<a href="#section-9.1-7.2" class="pilcrow">¶</a>
-</li>
-          <li class="normal" id="section-9.1-7.3">Key: present if and only if Has Key is set, with length determined by the AEAD Algorith value.<a href="#section-9.1-7.3" class="pilcrow">¶</a>
-</li>
-          <li class="normal" id="section-9.1-7.4">Header AEAD Algorithm: Same as AEAD Algorithm, but the key and algorithm used to protect the header fields in the session packets.  This value cannot change during the lifetime of the connection.  Presence signaled by Has Header Key.<a href="#section-9.1-7.4" class="pilcrow">¶</a>
-</li>
-          <li class="normal" id="section-9.1-7.5">
-            <p id="section-9.1-7.5.1">Header Key: Same as Key, but for the Header AEAD Algorithm.<a href="#section-9.1-7.5.1" class="pilcrow">¶</a></p>
-<ul class="normal">
-<li class="normal" id="section-9.1-7.5.2.1">I assume it's not better to use a TLS CipherSuite because there is no KDF stage for deriving these keys (they are a strict server-to-client advertisement), so the Hash part would be unused?
-<a href="https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4</a><a href="#section-9.1-7.5.2.1" class="pilcrow">¶</a>
-</li>
-            </ul>
-</li>
-          <li class="normal" id="section-9.1-7.6">
-            <p id="section-9.1-7.6.1">Integrity Hash Algorithm: the hash algorithm used in integrity frames
-Several candidate iana registries, not sure which one to use?  Some have only text for some possibly useful values:<a href="#section-9.1-7.6.1" class="pilcrow">¶</a></p>
-<ul class="normal">
-<li class="normal" id="section-9.1-7.6.2.1">
-                <a href="https://www.iana.org/assignments/named-information/named-information.xhtml#hash-alg">https://www.iana.org/assignments/named-information/named-information.xhtml#hash-alg</a><a href="#section-9.1-7.6.2.1" class="pilcrow">¶</a>
-</li>
-              <li class="normal" id="section-9.1-7.6.2.2">
-                <a href="https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-18">https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-18</a><a href="#section-9.1-7.6.2.2" class="pilcrow">¶</a>
-</li>
-              <li class="normal" id="section-9.1-7.6.2.3">(text-only): <a href="https://www.iana.org/assignments/hash-function-text-names/hash-function-text-names.xhtml">https://www.iana.org/assignments/hash-function-text-names/hash-function-text-names.xhtml</a><a href="#section-9.1-7.6.2.3" class="pilcrow">¶</a>
-</li>
-            </ul>
-</li>
-          <li class="normal" id="section-9.1-7.7">If Has Addresses is 0, then Has SSM and IP Family are ignored and neither Source IP nor Group IP is present.  If Has Addresses is 1, then SSM indicates the presence of Source IP (1 means present, 0 means not present), and IP Family indicates the address family of both Source IP (if present) and Group IP, with 0 meaning IPv4 (32 bits) and 1 meaning IPv6 (128 bits).
-an IP Family of 0 indicates the Group (if present) are IPv4, or an IP family of 1 indicates the Group and Source are IPv6.<a href="#section-9.1-7.7" class="pilcrow">¶</a>
+          <li class="normal" id="section-9.1-7.2">Properties Sequence Number: increases by 1 each time the properties for the session are changed by the server.  For mutable properties, the client tracks the sequence number of the MC_SESSION_PROPERTIES frame that set its current value, and only updates the value and the packet number range on which it's applicable if the Properties Sequnce Number is higher.<a href="#section-9.1-7.2" class="pilcrow">¶</a>
 </li>
         </ul>
+<div id="immutable-properties">
+<section id="section-9.1.1">
+          <h4 id="name-immutable-properties">
+<a href="#section-9.1.1" class="section-number selfRef">9.1.1. </a><a href="#name-immutable-properties" class="section-name selfRef">Immutable Properties</a>
+          </h4>
+<p id="section-9.1.1-1">These values cannot change during the lifetime of the session.  If a new value is received that is not the same as a prior value, the client MUST close the connection with a PROTOCOL_ERROR.<a href="#section-9.1.1-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.1.1-2.1">IP Family: Always present, but used only when Has Addresses=1 (ignored otherwise).  0 indicates IPv4, 1 indicates IPv6 for both Source IP (if present) and Group IP.<a href="#section-9.1.1-2.1" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-9.1.1-2.2">Source IP: Present if Has Addresses=1 and Has SSM=1.  The IP Address of the source of the (S,G) for the session's channel.  Either a 32-bit IPv4 address or a 128-bit IPv6 address, as indicated by IP Family.<a href="#section-9.1.1-2.2" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-9.1.1-2.3">Group IP: Present if Has Addresses=1.  The IP Address of the group of the (S,G) for the session's channel.  Either a 32-bit IPv4 address or a 128-bit IPv6 address, as indicated by IP Family.<a href="#section-9.1.1-2.3" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-9.1.1-2.4">UDP Port: Present if Has Addressess=1.  The 16-bit UDP Port of traffic for the session's channel.<a href="#section-9.1.1-2.4" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-9.1.1-2.5">Header AEAD Algorithm: Present when Has Header Key=1.  a value from <a href="https://www.iana.org/assignments/aead-parameters/aead-parameters.xhtml">https://www.iana.org/assignments/aead-parameters/aead-parameters.xhtml</a>, used to protect the header fields in the session packets.  The value MUST match a value provided in the "AEAD Algorithms List" of the transport parameter (see <a href="#transport-parameter" class="xref">Section 3</a>).<a href="#section-9.1.1-2.5" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-9.1.1-2.6">
+              <p id="section-9.1.1-2.6.1">Header Key: Present when Has Header Key=1.  A key with length and semantics determined by the Header AEAD Algorithm.<a href="#section-9.1.1-2.6.1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.1.1-2.6.2.1">I assume it's not better to use a TLS CipherSuite because there is no KDF stage for deriving these keys (they are a strict server-to-client advertisement), so the Hash part would be unused? (<a href="https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4</a>)<a href="#section-9.1.1-2.6.2.1" class="pilcrow">¶</a>
+</li>
+              </ul>
+</li>
+          </ul>
+</section>
+</div>
+<div id="mutable-properties">
+<section id="section-9.1.2">
+          <h4 id="name-mutable-properties">
+<a href="#section-9.1.2" class="section-number selfRef">9.1.2. </a><a href="#name-mutable-properties" class="section-name selfRef">Mutable Properties</a>
+          </h4>
+<p id="section-9.1.2-1">These values MAY change during the lifetime of the session.
+From Packet Number and Until Packet Number are used to indicate the packet number (Section 17.1 of <span>[<a href="#RFC9000" class="xref">RFC9000</a>]</span>) the 1-RTT packets received) over which these values are applicable.
+A From Packet Number without an Until Packet Number has an unspecified termination.
+If new property values appear and are different from prior values, the From Packet Number implicitly sets the Until Packet Number of the prior property value equal to the new From Packet Number.<a href="#section-9.1.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.1.2-2.1">Key Phase: Always present, used only if Has Key is set (otherwise ignored).  The key phase value in the 1-RTT packet that will be in use for this key (see Section 6 of <span>[<a href="#RFC9001" class="xref">RFC9001</a>]</span>).<a href="#section-9.1.2-2.1" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-9.1.2-2.2">AEAD Algorithm: Present if Has Key is set.  A value from <a href="https://www.iana.org/assignments/aead-parameters/aead-parameters.xhtml">https://www.iana.org/assignments/aead-parameters/aead-parameters.xhtml</a>.  The value MUST match a value provided in the "AEAD Algorithms List" of the transport parameter (see <a href="#transport-parameter" class="xref">Section 3</a>).<a href="#section-9.1.2-2.2" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-9.1.2-2.3">Key: present if and only if Has Key is set, with length determined by the AEAD Algorith value.  Used to protect the packet contents of 1-RTT packets for the session as described in <span>[<a href="#RFC9001" class="xref">RFC9001</a>]</span>.<a href="#section-9.1.2-2.3" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-9.1.2-2.4">
+              <p id="section-9.1.2-2.4.1">Integrity Hash Algorithm: the hash algorithm used in integrity frames
+Several candidate iana registries, not sure which one to use?  Some have only text for some possibly useful values:<a href="#section-9.1.2-2.4.1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.1.2-2.4.2.1">
+                  <a href="https://www.iana.org/assignments/named-information/named-information.xhtml#hash-alg">https://www.iana.org/assignments/named-information/named-information.xhtml#hash-alg</a><a href="#section-9.1.2-2.4.2.1" class="pilcrow">¶</a>
+</li>
+                <li class="normal" id="section-9.1.2-2.4.2.2">
+                  <a href="https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-18">https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-18</a><a href="#section-9.1.2-2.4.2.2" class="pilcrow">¶</a>
+</li>
+                <li class="normal" id="section-9.1.2-2.4.2.3">(text-only): <a href="https://www.iana.org/assignments/hash-function-text-names/hash-function-text-names.xhtml">https://www.iana.org/assignments/hash-function-text-names/hash-function-text-names.xhtml</a><a href="#section-9.1.2-2.4.2.3" class="pilcrow">¶</a>
+</li>
+              </ul>
+</li>
+            <li class="normal" id="section-9.1.2-2.5">Max Rate: The maximum rate in Kibps of the payload data for this session.Session data MUST NOT exceed this rate over any 5s window, if it does clients SHOULD leave the session with reason Max Rate Exceeded.<a href="#section-9.1.2-2.5" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-9.1.2-2.6">Max Idle Time: The maximum expected idle time of the session.  If this amount of time passes in a joined session without data received, clients SHOULD leave the session with reason Max Idle Time Exceeded.<a href="#section-9.1.2-2.6" class="pilcrow">¶</a>
+</li>
+            <li class="normal" id="section-9.1.2-2.7">Max Streams: The maximum stream ID that might appear in the session.  If a client joined to this session can raise its Max Streams limit up to or above this value it SHOULD do so, otherwise it SHOULD leave or decline join for the session with Max Streams Exceeded.<a href="#section-9.1.2-2.7" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
 </section>
 </div>
 <div id="session-join-frame">
@@ -1934,6 +1981,10 @@ which was already checked on the unicast channel?)<a href="#section-12-3" class=
 <dt id="RFC9000">[RFC9000]</dt>
       <dd>
 <span class="refAuthor">Iyengar, J., Ed.</span> and <span class="refAuthor">M. Thomson, Ed.</span>, <span class="refTitle">"QUIC: A UDP-Based Multiplexed and Secure Transport"</span>, <span class="seriesInfo">RFC 9000</span>, <span class="seriesInfo">DOI 10.17487/RFC9000</span>, <time datetime="2021-05" class="refDate">May 2021</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9000">https://www.rfc-editor.org/rfc/rfc9000</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9001">[RFC9001]</dt>
+      <dd>
+<span class="refAuthor">Thomson, M., Ed.</span> and <span class="refAuthor">S. Turner, Ed.</span>, <span class="refTitle">"Using TLS to Secure QUIC"</span>, <span class="seriesInfo">RFC 9001</span>, <span class="seriesInfo">DOI 10.17487/RFC9001</span>, <time datetime="2021-05" class="refDate">May 2021</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9001">https://www.rfc-editor.org/rfc/rfc9001</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC9221">[RFC9221]</dt>
     <dd>
