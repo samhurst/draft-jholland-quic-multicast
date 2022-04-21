@@ -1265,18 +1265,25 @@ appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">�
       <h2 id="name-multicast-session">
 <a href="#section-2" class="section-number selfRef">2. </a><a href="#name-multicast-session" class="section-name selfRef">Multicast Session</a>
       </h2>
-<p id="section-2-1">A multicast session (or just session) is a one-way communication stream by which a server can transport data to a client as part of the QUIC connection between the server and client.<a href="#section-2-1" class="pilcrow">¶</a></p>
-<p id="section-2-2">Multicast sessions are additional network paths that can optionally be used by the server and client to transport application data concurrently with other network paths used by the connection.<a href="#section-2-2" class="pilcrow">¶</a></p>
-<p id="section-2-3">Sessions are designed to leverage multicast IP, so all clients joined to a session will receive identical data packets for that session at the IP layer.
-Sessions are designed to be shared by many connections so that many servers can use the same session to communicate the same data to many clients.<a href="#section-2-3" class="pilcrow">¶</a></p>
-<p id="section-2-4">Note that each QUIC connection still is defined only between a single client and a single server.
-But when using the multicast extension defined in this document, some of the data transmitted from server to client may be data that used a network transport path that was shared with other connections.<a href="#section-2-4" class="pilcrow">¶</a></p>
-<p id="section-2-5">The use of any particular session is OPTIONAL for both the server and the client.
-It is recommended that applications designed to leverage the multicast capabilities of this extension also provide graceeful degradation for endpoints that do not or cannot make use of the multicast functionality.<a href="#section-2-5" class="pilcrow">¶</a></p>
-<p id="section-2-6">The server has access to all data transmitted on any multicast session it uses, and could optionally send this data with unicast instead.<a href="#section-2-6" class="pilcrow">¶</a></p>
-<p id="section-2-7">No special handling of the data is required in a client application that has enabled multicast.
-A datagram or any particular bytes from a server-initiated unidirectional stream can be delivered over the unicast connection or a multicast session transparently to the client.<a href="#section-2-7" class="pilcrow">¶</a></p>
-<p id="section-2-8">Client applications should have a mechanism that disables the use of multicast on connections with enhanced privacy requirements for the privacy-related reasons covered in <span>[<a href="#I-D.draft-krose-multicast-security" class="xref">I-D.draft-krose-multicast-security</a>]</span>.<a href="#section-2-8" class="pilcrow">¶</a></p>
+<p id="section-2-1">A QUIC multicast session (or just session) is a one-way network path that a server can use as an alternate path to send QUIC connection data to a client.<a href="#section-2-1" class="pilcrow">¶</a></p>
+<p id="section-2-2">Multicast sessions are designed to leverage multicast IP and to be shared by many different connections simultaneously for unidirectional server-initiated data.
+One or more servers can use the same QUIC multicast session to send the same data to many clients, as a supplement to the individual QUIC connections between those servers and clients.<a href="#section-2-2" class="pilcrow">¶</a></p>
+<p id="section-2-3">QUIC connections are defined in Section 5 of <span>[<a href="#RFC9000" class="xref">RFC9000</a>]</span> and are not changed in this document; each connection is a shared state between a client and a server.<a href="#section-2-3" class="pilcrow">¶</a></p>
+<p id="section-2-4">Sessions carry only 1-RTT packets.
+Packets associated with a session contain a Session ID in place of a Destination Connection ID.
+(A Session ID cannot be zero length.)
+This adds a layer of indirection to the process described in Section 5.2 of <span>[<a href="#RFC9000" class="xref">RFC9000</a>]</span>} for matching packets to connections upon receipt.
+Incoming packets received on the network path associated with a session use the Session ID to associate the packet with a joined session.<a href="#section-2-4" class="pilcrow">¶</a></p>
+<p id="section-2-5">A client with a matching joined session always has at least one connection associated with the session.
+If a client has no matching joined session, the packet is discarded.<a href="#section-2-5" class="pilcrow">¶</a></p>
+<p id="section-2-6">Since the network path for a session is unidirectional, packets associated with a session are acknowledged with MP_SESSION_ACK frames <a href="#session-ack-frame" class="xref">Section 10.6</a> instead of with ACK frames.
+Each session has an independent sequence number space.<a href="#section-2-6" class="pilcrow">¶</a></p>
+<p id="section-2-7">The use of any particular session is OPTIONAL for both the server and the client.
+It is recommended that applications designed to leverage the multicast capabilities of this extension also provide graceeful degradation for endpoints that do not or cannot make use of the multicast functionality.<a href="#section-2-7" class="pilcrow">¶</a></p>
+<p id="section-2-8">The server has access to all data transmitted on any multicast session it uses, and could optionally send this data with unicast instead.<a href="#section-2-8" class="pilcrow">¶</a></p>
+<p id="section-2-9">No special handling of the data is required in a client application that has enabled multicast.
+A datagram or any particular bytes from a server-initiated unidirectional stream can be delivered over the unicast connection or a multicast session transparently to the client.<a href="#section-2-9" class="pilcrow">¶</a></p>
+<p id="section-2-10">Client applications should have a mechanism that disables the use of multicast on connections with enhanced privacy requirements for the privacy-related reasons covered in <span>[<a href="#I-D.draft-krose-multicast-security" class="xref">I-D.draft-krose-multicast-security</a>]</span>.<a href="#section-2-10" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="transport-parameter">
