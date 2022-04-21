@@ -5,7 +5,7 @@
 QUIC Working Group                                            J. Holland
 Internet-Draft                                 Akamai Technologies, Inc.
 Intended status: Experimental                                  L. Pardue
-Expires: 19 October 2022                                   17 April 2022
+Expires: 23 October 2022                                   21 April 2022
 
 
                       Multicast Extension for QUIC
@@ -50,7 +50,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 19 October 2022.
+   This Internet-Draft will expire on 23 October 2022.
 
 Copyright Notice
 
@@ -79,26 +79,28 @@ Table of Contents
      4.4.  Stream Processing
    5.  Flow Control
    6.  Congestion Control
-   7.  Packet Scheduling
-   8.  Implementation and Operational Considerations
-   9.  New Frames
-     9.1.  MC_SESSION_PROPERTIES
-       9.1.1.  Immutable Properties
-       9.1.2.  Mutable Properties
-     9.2.  MC_SESSION_JOIN
-     9.3.  MC_SESSION_LEAVE
-     9.4.  MC_SESSION_INTEGRITY
-     9.5.  MC_SESSION_STREAM_BOUNDARY_OFFSET
-     9.6.  MC_SESSION_ACK
-     9.7.  MC_PATH_RESPONSE
-     9.8.  MC_CLIENT_LIMITS
-     9.9.  MC_SESSION_RETIRE
-     9.10. MC_CLIENT_SESSION_STATE
-   10. Frames Carried in Session Packets
-   11. Error Codes
-   12. Security Considerations
-   13. IANA Considerations
-   14. Normative References
+   7.  Data Integrity
+     7.1.  Packet Hashes
+   8.  Packet Scheduling
+   9.  Implementation and Operational Considerations
+   10. New Frames
+     10.1.  MC_SESSION_PROPERTIES
+       10.1.1.  Immutable Properties
+       10.1.2.  Mutable Properties
+     10.2.  MC_SESSION_JOIN
+     10.3.  MC_SESSION_LEAVE
+     10.4.  MC_SESSION_INTEGRITY
+     10.5.  MC_SESSION_STREAM_BOUNDARY_OFFSET
+     10.6.  MC_SESSION_ACK
+     10.7.  MC_PATH_RESPONSE
+     10.8.  MC_CLIENT_LIMITS
+     10.9.  MC_SESSION_RETIRE
+     10.10. MC_CLIENT_SESSION_STATE
+   11. Frames Carried in Session Packets
+   12. Error Codes
+   13. Security Considerations
+   14. IANA Considerations
+   15. Normative References
    Acknowledgments
    Authors' Addresses
 
@@ -161,11 +163,18 @@ Table of Contents
 
    The server has access to all data transmitted on any multicast
    session it uses, and could optionally send this data with unicast
-   instead.  An application using a multicast-capable QUIC
-   implementation that receives a datagram or stream data has no
-   knowledge at the application layer whether multicast was used or not
-   used for that data, it will only know it has received unidirectional
-   server-to-client application data.
+   instead.
+
+   No special handling of the data is required in a client application
+   that has enabled multicast.  A datagram or any particular bytes from
+   a server-initiated unidirectional stream can be delivered over the
+   unicast connection or a multicast session transparently to the
+   client.
+
+   Client applications should have a mechanism that disables the use of
+   multicast on connections with enhanced privacy requirements for the
+   privacy-related reasons covered in
+   [I-D.draft-krose-multicast-security].
 
 3.  Transport Parameter
 
@@ -200,7 +209,7 @@ Table of Contents
                   Figure 1: multicast_client_params Format
 
    The Permit IPv4, Permit IPv6, Max Aggregate Rate, and Max Session IDs
-   fields are the same as in MC_CLIENT_LIMITS frames (Section 9.8) and
+   fields are the same as in MC_CLIENT_LIMITS frames (Section 10.8) and
    provide the initial client values.
 
    The AEAD Algorithms List field is in order of prefernce (most
@@ -245,54 +254,54 @@ Table of Contents
    The client tells its server about some restrictions on resources that
    the server's instructions with the initial values in the
    multicast_client_params transport parameter (Section 3) and later can
-   update these limits with MC_CLIENT_LIMITS Section 9.8 frames.
+   update these limits with MC_CLIENT_LIMITS Section 10.8 frames.
    Servers ensure the set of sessions the client is currently requested
    to join remains within these advertised client limits as covered in
    Section 5.
 
    The server asks the client to join sessions with MC_SESSION_JOIN
-   (Section 9.2) frames and to leave sessions with MC_SESSION_LEAVE
-   (Section 9.3) frames.
+   (Section 10.2) frames and to leave sessions with MC_SESSION_LEAVE
+   (Section 10.3) frames.
 
-   The server uses MC_SESSION_PROPERTIES (Section 9.1) frames before any
-   join or leave frames for the session to describe the session
+   The server uses MC_SESSION_PROPERTIES (Section 10.1) frames before
+   any join or leave frames for the session to describe the session
    properties to the client, including values the client can use to
    ensure the server's requests remain within the limits it has sent to
    the server, as well as the keys necessary to decode packets in the
    session.
 
    When the server has asked the client to join a session, it also sends
-   MC_SESSION_INTEGRITY frames (Section 9.4) to enable the client to
+   MC_SESSION_INTEGRITY frames (Section 10.4) to enable the client to
    verify packet integrity before processing the packet.  A client MUST
    NOT decode packets for a session for which it has not received an
-   applicable set of MC_SESSION_PROPERTIES (Section 9.1) frames
+   applicable set of MC_SESSION_PROPERTIES (Section 10.1) frames
    containing the full set of data required, or for which it has not
    received a matching packet hash in an MC_SESSION_INTEGRITY
-   (Section 9.4) frame.
+   (Section 10.4) frame.
 
    The server ensures that in aggregate, all sessions that the client
    has currently been asked to join and that the client has not left or
    declined to join fit within the limits indicated by the initial
    values in the transport parameter or last MC_CLIENT_LIMITS
-   (Section 9.8) frame the server received.
+   (Section 10.8) frame the server received.
 
 4.2.  Client Response
 
    The client sends back information about how it has responded to the
    server's requests to join and leave sessions in
-   MC_CLIENT_SESSION_STATE (Section 9.10) frames.
+   MC_CLIENT_SESSION_STATE (Section 10.10) frames.
    MC_CLIENT_SESSION_STATE frames are only sent for sessions after the
    server has requested the client to join the session, and are
    thereafter sent any time the state changes.
 
    The client also sends back acknowledgements of data packets received
-   from joined sessions with MC_SESSION_ACK (Section 9.6) frames.
+   from joined sessions with MC_SESSION_ACK (Section 10.6) frames.
 
    Clients that receive and decode data on a multicast session send
    acknowledgements for the data on a unicast session using
    MC_SESSION_ACK frames.  Sessions also will periodically contain
    PATH_CHALLENGE ([RFC9000] Section 19.17) frames, which cause clients
-   to send MC_PATH_RESPONSE (Section 9.7) frames on the unicast
+   to send MC_PATH_RESPONSE (Section 10.7) frames on the unicast
    connection in addition to their MC_SESSION_ACK frames.
 
 4.3.  Data Carried in Sessions
@@ -302,8 +311,8 @@ Table of Contents
    decode the data.  However, since potentially many receivers receive
    identical packets and identical keys for the multicast session and
    some receivers might be malicious, the packets are also protected by
-   MC_SESSION_INTEGRITY (Section 9.4) frames transmitted over a separate
-   integrity-protected path.
+   MC_SESSION_INTEGRITY (Section 10.4) frames transmitted over a
+   separate integrity-protected path.
 
    A client MUST NOT decode packets on a multicast session for which it
    has not received a matching hash in an MC_SESSION_INTEGRITY frame
@@ -336,11 +345,12 @@ Table of Contents
    max_streams_uni to allow for uninterrupted transport using the
    multicast session.
 
-   Servers also can send MC_SESSION_STREAM_BOUNDARY_OFFSET (Section 9.5)
-   frames to indicate an application-layer boundary in a stream carried
-   inside a session.  These frames enable new clients joining a session
-   to start receiving application data from the indicated stream as
-   though the stream data at that offset had an offset of 0.
+   Servers also can send MC_SESSION_STREAM_BOUNDARY_OFFSET
+   (Section 10.5) frames to indicate an application-layer boundary in a
+   stream carried inside a session.  These frames enable new clients
+   joining a session to start receiving application data from the
+   indicated stream as though the stream data at that offset had an
+   offset of 0.
 
 5.  Flow Control
 
@@ -351,11 +361,11 @@ Table of Contents
    that sessions responded to each client's limits.
 
    Instead, clients advertise resource limits that the server is
-   responsible for staying within via MC_CLIENT_LIMITS (Section 9.8)
+   responsible for staying within via MC_CLIENT_LIMITS (Section 10.8)
    frames and their initial values from the transport parameter
    (Section 3).  The server advertises the expected maxima of the values
    that can contribute toward client resource limits within a session in
-   MC_SESSION_PROPERTIES (Section 9.1) frames.
+   MC_SESSION_PROPERTIES (Section 10.1) frames.
 
    If the server asks the client to join a session that would exceed the
    client's limits with an up-to-date Client Limit Sequence Number, the
@@ -373,19 +383,33 @@ Table of Contents
 
    The server maintains a full view of the traffic received by the
    client via the ACK frames coupled with the MC_SESSION_ACK
-   (Section 9.6) frames.
+   (Section 10.6) frames.
 
    Under sustained persistent loss, the server SHOULD instruct the
    client such that the aggregate rate of joined sessions remains under
    the data rate successfully received by the client in the recent past.
 
-7.  Packet Scheduling
+7.  Data Integrity
 
-8.  Implementation and Operational Considerations
+   TODO: import the [I-D.draft-krose-multicast-security] explanation for
+   why extra integrity protection is necessary (many client have the
+   shared key, so AEAD doesn't provide authentication against other
+   valid clients on its own).
 
-9.  New Frames
+7.1.  Packet Hashes
 
-9.1.  MC_SESSION_PROPERTIES
+   TODO: explanation and example for how to calculate the packet hash.
+   Note that the hash is on the unencrypted packet because it checks
+   against a specific packet number, which is protected by AEAD.  (This
+   approach also may help make better use of crypto hardware offload.)
+
+8.  Packet Scheduling
+
+9.  Implementation and Operational Considerations
+
+10.  New Frames
+
+10.1.  MC_SESSION_PROPERTIES
 
    An MC_SESSION_PROPERTIES frame (type=TBD-01) is sent from server to
    client, either with the unicast connection or in an existing joined
@@ -462,7 +486,7 @@ Table of Contents
       updates the value and the packet number range on which it's
       applicable if the Properties Sequnce Number is higher.
 
-9.1.1.  Immutable Properties
+10.1.1.  Immutable Properties
 
    These values cannot change during the lifetime of the session.  If a
    new value is received that is not the same as a prior value, the
@@ -503,7 +527,7 @@ Table of Contents
          (https://www.iana.org/assignments/tls-parameters/tls-
          parameters.xhtml#tls-parameters-4))
 
-9.1.2.  Mutable Properties
+10.1.2.  Mutable Properties
 
    These values MAY change during the lifetime of the session.  From
    Packet Number and Until Packet Number are used to indicate the packet
@@ -563,7 +587,7 @@ Table of Contents
       it SHOULD leave or decline join for the session with Max Streams
       Exceeded.
 
-9.2.  MC_SESSION_JOIN
+10.2.  MC_SESSION_JOIN
 
    An MC_SESSION_JOIN frame (type TBD-02) is sent from server to client
    and requests that a client join the given transport addresses and
@@ -594,7 +618,7 @@ Table of Contents
    the client does not join, it MUST send a MC_CLIENT_SESSION_STATE with
    "Declined Join" and a reason.
 
-9.3.  MC_SESSION_LEAVE
+10.3.  MC_SESSION_LEAVE
 
    An MC_SESSION_LEAVE frame (type=TBD-03) is sent from server to client
    Server-to-client in unicast connection or inside session.
@@ -611,7 +635,7 @@ Table of Contents
    If After Packet Number is nonzero, wait until receiving that packet
    or a higher valued number before leaving.
 
-9.4.  MC_SESSION_INTEGRITY
+10.4.  MC_SESSION_INTEGRITY
 
    MC_SESSION_INTEGRITY frames are formatted as shown in Figure 5.
 
@@ -621,6 +645,7 @@ Table of Contents
      Packet Number Start (i),
      [Length (i)],
      Packet Hashes (..)
+   }
 
                 Figure 5: MC_SESSION_INTEGRITY Frame Format
 
@@ -628,10 +653,18 @@ Table of Contents
    For TBD-04, Length is not present and the packet hashes extend to the
    end of the packet.
 
+   The first hash in the Packet Hashes list is a hash of a 1-RTT packet
+   with the Session ID equal to the Session ID in the
+   MC_SESSION_INTEGRITY frame and packet number equal to the Packet
+   Number Start field.  Subsequent hashes refer to the packets for the
+   session with packet numbers increasing by 1.
+
    Packet hashes MUST have length with an integer multiple of the length
    indicated by the Hash Algorithm from the Session Properties.
 
-9.5.  MC_SESSION_STREAM_BOUNDARY_OFFSET
+   See Section 7.1 for a description of the packet hash calculation.
+
+10.5.  MC_SESSION_STREAM_BOUNDARY_OFFSET
 
    MC_SESSION_STREAM_BOUNDARY_OFFSET frames are formatted as shown in
    Figure 6.
@@ -655,7 +688,7 @@ Table of Contents
    to start a new stream per object in order to be usable by late
    joiners.)
 
-9.6.  MC_SESSION_ACK
+10.6.  MC_SESSION_ACK
 
    Client->Server on unicast connection.
 
@@ -679,7 +712,7 @@ Table of Contents
 
                    Figure 7: MC_SESSION_ACK Frame Format
 
-9.7.  MC_PATH_RESPONSE
+10.7.  MC_PATH_RESPONSE
 
    MC_PATH_RESPONSE frames are sent from client to server in a unicast
    connection in response to an PATH_CHALLENGE received in a session.
@@ -695,7 +728,7 @@ Table of Contents
 
                   Figure 8: MC_PATH_RESPONSE Frame Format
 
-9.8.  MC_CLIENT_LIMITS
+10.8.  MC_CLIENT_LIMITS
 
    MC_CLIENT_LIMITS frames are formatted as shown in Figure 9.
 
@@ -716,7 +749,7 @@ Table of Contents
 
    Max Aggregate Rate allowed across all joined sessions is in Kibps.
 
-9.9.  MC_SESSION_RETIRE
+10.9.  MC_SESSION_RETIRE
 
    MC_SESSION_RETIRE frames are formatted as shown in Figure 10.
 
@@ -729,7 +762,7 @@ Table of Contents
    Retires a session by id.  (We can't use RETIRE_CONNECTION_ID because
    we don't have a coherent sequence number.)
 
-9.10.  MC_CLIENT_SESSION_STATE
+10.10.  MC_CLIENT_SESSION_STATE
 
    MC_CLIENT_SESSION_STATE frames are formatted as shown in Figure 11.
 
@@ -784,7 +817,7 @@ Table of Contents
    inferred from ack responses but explicit seems better, allowing for a
    more proactive response under strain?
 
-10.  Frames Carried in Session Packets
+11.  Frames Carried in Session Packets
 
    MC Sessions will contain normal quic 1-rtt data packets (see
    Section 17.3.1 of [RFC9000]) except using the Session ID instead of a
@@ -872,9 +905,9 @@ Table of Contents
 
    *  MC_SESSION_ACK
 
-11.  Error Codes
+12.  Error Codes
 
-12.  Security Considerations
+13.  Security Considerations
 
    Mostly incorporate [I-D.draft-krose-multicast-security].  Anything
    else?
@@ -900,11 +933,11 @@ Table of Contents
    crypto guarantee of a proper sender via the domain's cert, which was
    already checked on the unicast channel?)
 
-13.  IANA Considerations
+14.  IANA Considerations
 
    TODO: lots
 
-14.  Normative References
+15.  Normative References
 
    [I-D.draft-ietf-quic-multipath]
               Liu, Y., Ma, Y., Coninck, Q. D., Bonaventure, O., Huitema,
