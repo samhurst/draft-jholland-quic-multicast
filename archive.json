@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2022-04-24T00:26:14.119616+00:00",
+  "timestamp": "2022-04-26T00:30:23.454400+00:00",
   "repo": "GrumpyOldTroll/draft-jholland-quic-multicast",
   "labels": [
     {
@@ -93,7 +93,7 @@
       "labels": [],
       "body": "Section 9.1: \r\n\r\n`An MC_SESSION_PROPERTIES frame (type=TBD-01) is sent from server to client, either with the unicast connection or in an existing joined multicast session.`\r\n\r\nIs there any reason that this couldn't always be delivered just over the unicast stream? As the AEAD key and algorithm are mutable, I think this might expose an unnecessary attack vector. By only having it on the unicast stream its safer for both the server (as it knows all recipients that will get it) as well as the client (as it knows it comes from the legitimate source). ",
       "createdAt": "2022-04-19T00:52:57Z",
-      "updatedAt": "2022-04-21T07:42:18Z",
+      "updatedAt": "2022-04-25T06:57:48Z",
       "closedAt": null,
       "comments": [
         {
@@ -123,6 +123,13 @@
           "body": "Actually, I had another idea: if the only issue is forward secrecy, what if a recommendation is added that every nth MC_SESSION_PROPERTIES should be delivered over unicast to break the chain of endless forward secrecy violations? ",
           "createdAt": "2022-04-21T07:42:18Z",
           "updatedAt": "2022-04-21T07:42:18Z"
+        },
+        {
+          "author": "GrumpyOldTroll",
+          "authorAssociation": "OWNER",
+          "body": "That seems reasonable.\r\n\r\nBut this is more like every N key rotations, and only has to count updates containing a new key, updates to other properties probably shouldn't be counted.",
+          "createdAt": "2022-04-25T06:57:48Z",
+          "updatedAt": "2022-04-25T06:57:48Z"
         }
       ]
     },
@@ -297,7 +304,7 @@
       "labels": [],
       "body": "\"Session\" already has a meaning in QUIC.  It appears to be implicitly imported via TLS, c.f.:\r\n - https://www.rfc-editor.org/rfc/rfc9000#section-14.2.1-4\r\n - https://www.rfc-editor.org/rfc/rfc9001.html#name-session-resumption\r\n - https://www.rfc-editor.org/rfc/rfc8446.html#section-2.2\r\n\r\nI'm thinking maybe we can search & replace \"session\" with \"channel\"?\r\n\r\n\"Channel\" also has a meaning in SSM (c.f. https://www.rfc-editor.org/rfc/rfc4607.html#page-4), but using it here would be complementary instead of divergent.  (\"Channel\" in SSM refers to a network path, and likewise if we used it instead of \"Session\" in the QUIC extensions it would refer to a network path and associated objects...)",
       "createdAt": "2022-04-21T21:17:37Z",
-      "updatedAt": "2022-04-22T00:12:26Z",
+      "updatedAt": "2022-04-25T07:05:46Z",
       "closedAt": null,
       "comments": [
         {
@@ -306,6 +313,13 @@
           "body": "I agree that channel would fit well with its meaning in SSM, only thing to keep in mind is that QUIC specifies a stream as `A unidirectional or bidirectional channel of ordered bytes within a QUIC connection.`\r\n\r\nI think there should be no confusion there though. ",
           "createdAt": "2022-04-22T00:12:26Z",
           "updatedAt": "2022-04-22T00:12:26Z"
+        },
+        {
+          "author": "GrumpyOldTroll",
+          "authorAssociation": "OWNER",
+          "body": "Yes, I don't think that will cause nearly as much confusion as \"session\".\r\n\r\nA grep for \"channel\" in google's quiche suggests that it once had a meaning back when the project was spdy and there are some remnants still in the code, but these also have a much smaller footprint than \"session\", and I think are only in obsolete parts, c.f.:\r\n\r\n~~~\r\nnet/third_party/quiche/src/quic/core/tls_server_handshaker.cc:  // Channel ID is not supported when TLS is used in QUIC.\r\n~~~",
+          "createdAt": "2022-04-25T07:05:46Z",
+          "updatedAt": "2022-04-25T07:05:46Z"
         }
       ]
     },
@@ -337,9 +351,17 @@
       "labels": [],
       "body": "How would a client behave if the unicast connection is interrupted but the Multicast channels still receive data? It wouldn\u2019t be able to check the integrity of any packets, but it isn\u2019t exactly idling either so the idle connection timeout would not trigger I guess? Should this be clarified so that all multicast session are left and the entire connection is shutdown if there is no message over the unicast connection for longer than the idle timeout? ",
       "createdAt": "2022-04-22T19:30:18Z",
-      "updatedAt": "2022-04-22T19:30:18Z",
+      "updatedAt": "2022-04-25T06:54:36Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "GrumpyOldTroll",
+          "authorAssociation": "OWNER",
+          "body": "Yeah, good question.  I guess maybe the client should actively ensure it still has unicast connectivity and leave sessions if it can't prove it does, on a timescale similar to max idle (or maybe another value?).\r\n\r\nI guess if client gets no packets for some time on unicast, it should probably send a ping, and if it still has no ack after some time it should leave its sessions with a reason like \"failed unicast\".  But yes, there should certainly be a section detailing the behavior, good point.",
+          "createdAt": "2022-04-25T06:54:13Z",
+          "updatedAt": "2022-04-25T06:54:36Z"
+        }
+      ]
     },
     {
       "number": 13,
@@ -353,9 +375,17 @@
       "labels": [],
       "body": "What happens if the unikalster path is being migrated due to a change in NAT/ mobility? It would probably mean that all sessions should issue new IGMP/MLD reports since it\u2019s quite possible that the device is connected to a new router does not yet have forwarding state and waiting for a query might cause unnecessary delays.\r\n\r\nIt might also mean that the idle timeout for the session is (falsely) triggered as it could take some time for the join to propagate far enough upstream to receive Multicast packets once again. ",
       "createdAt": "2022-04-22T19:38:25Z",
-      "updatedAt": "2022-04-22T19:38:25Z",
+      "updatedAt": "2022-04-25T06:50:16Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "GrumpyOldTroll",
+          "authorAssociation": "OWNER",
+          "body": "Yes, if the client switches to a new network path it'll need to attempt rejoining its joined sessions on the new path.\r\n\r\nThat's a good point about a false idle time issue, but that's also applicable to the initial join--there maybe should be a different initial join max idle vs. the max idle after the first data is received.  If we had that, on a connection change maybe client could use the initial join max idle.  (And also maybe server should assume that unicast data is required until there start being MP_SESSION_ACKs, and this should also start immediately upon a unicast connection id change?)\r\n\r\nIt is also possible the client limits change in this scenario, such as the \"permit IPv4\" or the \"permit IPv6\" flags or the max rate.  These might require server to change the sessions the client joins.\r\n\r\nAnyway, +1, there should be a discussion of the issues that can happen on a client network change, and perhaps some guidance on how to handle it.  That's probably a whole section, with perhaps several subsections.",
+          "createdAt": "2022-04-25T06:50:16Z",
+          "updatedAt": "2022-04-25T06:50:16Z"
+        }
+      ]
     },
     {
       "number": 14,
@@ -369,9 +399,17 @@
       "labels": [],
       "body": "RFC 9000, section 4.6: `Only streams with a stream ID less than \"(max_streams * 4\r\n   + first_stream_id_of_type)\" can be opened`\r\n   \r\nSince each session has its own stream ID space a different restriction might need to be specified to make sure the combination of all streams across all sessions does not exceed the limit set by max_streams.",
       "createdAt": "2022-04-22T19:45:53Z",
-      "updatedAt": "2022-04-22T19:45:53Z",
+      "updatedAt": "2022-04-25T06:26:50Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "GrumpyOldTroll",
+          "authorAssociation": "OWNER",
+          "body": "I don't think each session has its own stream ID space necessarily.  In particular, I think missing data from a stream can be retransmitted by the unicast connection by using the same stream ID that was used in the , so I think the space is shared across the connection.\r\n\r\nBut it does probably have to say something to clarify the point, and the server has to do something to ensure the stream IDs don't collide if there's any unidirectional streams used for unicast.  I think what that is can be left up to the server.  (It could for instance use only IDs with ID % 8 == 7, leaving those for ID % 8 == 3 for unidirectional, for instance, or it could use the same internal signaling channels on the server side that ensure the servers all have access to all the session data.)",
+          "createdAt": "2022-04-25T06:26:50Z",
+          "updatedAt": "2022-04-25T06:26:50Z"
+        }
+      ]
     }
   ],
   "pulls": [
