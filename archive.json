@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2022-04-26T00:30:23.454400+00:00",
+  "timestamp": "2022-04-28T00:37:04.959871+00:00",
   "repo": "GrumpyOldTroll/draft-jholland-quic-multicast",
   "labels": [
     {
@@ -335,9 +335,24 @@
       "labels": [],
       "body": "Following QUIC mechanics, every single STREAM frame has to be acknowledged. This is done so that missing frames can be retransmitted. However, in Multicast there are several use cases where a retransmission of missing frames might not be desired (such as live video streaming) and having to acknowledge every packet creates unnecessary overhead (which at Multicast scales could add up to be quite significant). I think it might be useful to have a mechanic that replaced the acknowledgement of every frame immediately with either a bundled acknowledgment of several frames that only occurs (relatively) rarely or even just an acknowledgment that (any) data is still being received over the Multicast Channel. I guess a high max_ack_delay could be used to bundle acknowledgments, but that is set by the client. There is also not (yet) the inclusion of a mechanic that would allow for different transport properties between the unicast connection and the Multicast channels, so you would be stuck with a high max_ack_delay for unicast frames as well. ",
       "createdAt": "2022-04-22T00:06:39Z",
-      "updatedAt": "2022-04-22T00:06:39Z",
+      "updatedAt": "2022-04-27T14:42:12Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "GrumpyOldTroll",
+          "authorAssociation": "OWNER",
+          "body": "Yes, some kind of mechanism like this seems like a good idea.  I was originally thinking bundling could cover it, but I think you're right that it shouldn't be so tightly coupled to max_ack_delay that you have to pick between impacting your unicast recovery and requiring too many acks for multicast data, and that as it stands there's not a way to treat them separately.\r\n\r\nAs a brainstorming proposal:\r\nwhat about maybe a \"recommended ack bundle size\" as another session property that advises a client on a bundle size specific to the session to use as a target for a bundled acknowledgement count, and maybe this would override max_ack_delay for sessions below the recommended bundle size unless there is a gap in the packet sequence numbers that lasted longer than max_ack_delay or max_idle_time was exceeded (or maybe also if a ping or path challenge was received).  I think this would help with ack overhead (at least for the typical case?) without impacting unicast recovery.\r\n\r\nTo the other point you mentioned:  I think there are already mechanisms that can avoid the need for retransmits, such as RESET_STREAM and DATAGRAM, and I don't think I know any use cases that need another way? (draft-lcurley-warp for instance will use a stream per object and a reset stream if there was loss that's late enough they'd rather abandon it, I think))",
+          "createdAt": "2022-04-27T01:12:46Z",
+          "updatedAt": "2022-04-27T01:12:46Z"
+        },
+        {
+          "author": "MaxF12",
+          "authorAssociation": "COLLABORATOR",
+          "body": "Sorry, should have phrased it better, let me retry: I think the server does not always even need to know which specific packets are getting acknowledged (in cases when there is no intention to retransmit missing packets), so it might be sufficient to just send a frame saying \"Out of the last x packets I received y\" so the server can still know if/ how many dropped packets there are. I wonder if the handshake should also somehow negotiate if the server and client want reliable transmission or not. \r\n\r\nI like the idea about having a bundle size, maybe it would also be sufficient to say clients SHOULD try to fill the PMTU as good as possible? ",
+          "createdAt": "2022-04-27T14:42:12Z",
+          "updatedAt": "2022-04-27T14:42:12Z"
+        }
+      ]
     },
     {
       "number": 12,
@@ -410,6 +425,38 @@
           "updatedAt": "2022-04-25T06:26:50Z"
         }
       ]
+    },
+    {
+      "number": 15,
+      "id": "I_kwDOG6NyZs5Ik_fz",
+      "title": "How is a Stateless Reset handled?",
+      "url": "https://github.com/GrumpyOldTroll/draft-jholland-quic-multicast/issues/15",
+      "state": "OPEN",
+      "author": "GrumpyOldTroll",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "https://www.rfc-editor.org/rfc/rfc9000#section-10.3",
+      "createdAt": "2022-04-27T17:15:09Z",
+      "updatedAt": "2022-04-27T17:15:09Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 16,
+      "id": "I_kwDOG6NyZs5IlAIN",
+      "title": "Define the server's responsibility for buffering old data",
+      "url": "https://github.com/GrumpyOldTroll/draft-jholland-quic-multicast/issues/16",
+      "state": "OPEN",
+      "author": "GrumpyOldTroll",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "Session data needs reliability on streams, but also servers need to not be required to buffer unbounded amounts of data.  Define what the failure modes look like.",
+      "createdAt": "2022-04-27T17:16:40Z",
+      "updatedAt": "2022-04-27T17:16:40Z",
+      "closedAt": null,
+      "comments": []
     }
   ],
   "pulls": [
@@ -648,6 +695,58 @@
           ]
         }
       ]
+    },
+    {
+      "number": 17,
+      "id": "PR_kwDOG6NyZs426Kbm",
+      "title": "First attempt at stateless resets",
+      "url": "https://github.com/GrumpyOldTroll/draft-jholland-quic-multicast/pull/17",
+      "state": "OPEN",
+      "author": "MaxF12",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "Would close #15 ",
+      "createdAt": "2022-04-28T00:05:02Z",
+      "updatedAt": "2022-04-28T00:05:02Z",
+      "baseRepository": "GrumpyOldTroll/draft-jholland-quic-multicast",
+      "baseRefName": "main",
+      "baseRefOid": "67bf5b0c186fcd3e0fb6a9b1fa8d889c879bf524",
+      "headRepository": "MaxF12/draft-jholland-quic-multicast",
+      "headRefName": "issue15",
+      "headRefOid": "416bda9ef8ac2322cb40ad870ca42df8461db281",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": []
+    },
+    {
+      "number": 18,
+      "id": "PR_kwDOG6NyZs426Kjc",
+      "title": "Add ACK Bundle Size",
+      "url": "https://github.com/GrumpyOldTroll/draft-jholland-quic-multicast/pull/18",
+      "state": "OPEN",
+      "author": "MaxF12",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "Some minor things I notice while reading and first attempt at adding ACK bundle size.\r\nWould close #11 ",
+      "createdAt": "2022-04-28T00:06:04Z",
+      "updatedAt": "2022-04-28T00:09:55Z",
+      "baseRepository": "GrumpyOldTroll/draft-jholland-quic-multicast",
+      "baseRefName": "main",
+      "baseRefOid": "67bf5b0c186fcd3e0fb6a9b1fa8d889c879bf524",
+      "headRepository": "MaxF12/draft-jholland-quic-multicast",
+      "headRefName": "issue11",
+      "headRefOid": "a8d99e31424b377bf961a33b42ccd40a02ce562a",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": []
     }
   ]
 }
